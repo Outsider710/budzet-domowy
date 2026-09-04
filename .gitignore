@@ -1,0 +1,21 @@
+*.iml
+.gradle/
+local.properties
+.idea/
+.DS_Store
+build/
+**/build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Signing secrets — never commit
+keystore.properties
+*.jks
+*.keystore
+key/
+app/release/

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Budżet Domowy</string>
+    <string name="privacy_policy_url">https://REPLACE_WITH_YOUR_PRIVACY_POLICY_URL</string>
+</resources>
