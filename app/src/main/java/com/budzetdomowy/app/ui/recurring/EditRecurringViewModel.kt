@@ -1,4 +1,4 @@
-package com.budzetdomowy.app.ui.add
+package com.budzetdomowy.app.ui.recurring
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.budzetdomowy.app.data.BudgetRepository
 import com.budzetdomowy.app.data.CategoryEntity
 import com.budzetdomowy.app.data.RecurringRuleEntity
-import com.budzetdomowy.app.data.TransactionEntity
 import com.budzetdomowy.app.data.TransactionType
 import com.budzetdomowy.app.util.MoneyFormat
 import java.time.LocalDate
@@ -18,22 +17,26 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class EditFormState(
+data class EditRecurringForm(
     val id: Long = 0,
     val amountText: String = "",
     val type: TransactionType = TransactionType.EXPENSE,
     val categoryId: Long = 0,
     val note: String = "",
-    val date: LocalDate = LocalDate.now(),
-    val repeatMonthly: Boolean = false,
+    val dayOfMonthText: String = "1",
     val endDate: LocalDate? = null,
+    val active: Boolean = true,
+    val originalDayOfMonth: Int = 1,
+    val originalNextEpochDay: Long = 0,
     val amountError: Boolean = false,
+    val dayError: Boolean = false,
     val loaded: Boolean = false,
-    val saved: Boolean = false
+    val saved: Boolean = false,
+    val missing: Boolean = false
 )
 
-data class EditUiState(
-    val form: EditFormState = EditFormState(),
+data class EditRecurringUiState(
+    val form: EditRecurringForm = EditRecurringForm(),
     val categories: List<CategoryEntity> = emptyList()
 ) {
     val id get() = form.id
@@ -41,23 +44,25 @@ data class EditUiState(
     val type get() = form.type
     val categoryId get() = form.categoryId
     val note get() = form.note
-    val date get() = form.date
-    val repeatMonthly get() = form.repeatMonthly
+    val dayOfMonthText get() = form.dayOfMonthText
     val endDate get() = form.endDate
+    val active get() = form.active
     val amountError get() = form.amountError
+    val dayError get() = form.dayError
     val loaded get() = form.loaded
     val saved get() = form.saved
+    val missing get() = form.missing
     val visibleCategories get() = categories.filter { it.type == form.type }
 }
 
-class EditTransactionViewModel(
+class EditRecurringViewModel(
     private val repository: BudgetRepository,
-    private val transactionId: Long
+    private val ruleId: Long
 ) : ViewModel() {
 
-    private val form = MutableStateFlow(EditFormState())
+    private val form = MutableStateFlow(EditRecurringForm())
 
-    val uiState: StateFlow<EditUiState> = combine(
+    val uiState: StateFlow<EditRecurringUiState> = combine(
         form,
         repository.observeActiveCategories()
     ) { formState, categories ->
@@ -66,28 +71,32 @@ class EditTransactionViewModel(
             forType.any { it.id == formState.categoryId } -> formState.categoryId
             else -> forType.firstOrNull()?.id ?: 0L
         }
-        EditUiState(
-            form = formState.copy(categoryId = categoryId, loaded = formState.loaded),
+        EditRecurringUiState(
+            form = formState.copy(categoryId = categoryId),
             categories = categories
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EditUiState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EditRecurringUiState())
 
     init {
-        if (transactionId != 0L) {
-            viewModelScope.launch {
-                val existing = repository.getTransaction(transactionId) ?: return@launch
-                form.value = EditFormState(
-                    id = existing.id,
-                    amountText = formatAmountInput(existing.amountCents),
-                    type = existing.type,
-                    categoryId = existing.categoryId,
-                    note = existing.note,
-                    date = LocalDate.ofEpochDay(existing.epochDay),
-                    loaded = true
-                )
+        viewModelScope.launch {
+            val rule = repository.getRecurringRule(ruleId)
+            if (rule == null) {
+                form.value = EditRecurringForm(loaded = true, missing = true)
+                return@launch
             }
-        } else {
-            form.update { it.copy(loaded = true) }
+            form.value = EditRecurringForm(
+                id = rule.id,
+                amountText = formatAmountInput(rule.amountCents),
+                type = rule.type,
+                categoryId = rule.categoryId,
+                note = rule.note,
+                dayOfMonthText = rule.dayOfMonth.toString(),
+                endDate = rule.endEpochDay?.let { LocalDate.ofEpochDay(it) },
+                active = rule.active,
+                originalDayOfMonth = rule.dayOfMonth,
+                originalNextEpochDay = rule.nextEpochDay,
+                loaded = true
+            )
         }
     }
 
@@ -107,16 +116,16 @@ class EditTransactionViewModel(
         form.update { it.copy(note = note) }
     }
 
-    fun onDateChange(date: LocalDate) {
-        form.update { it.copy(date = date) }
-    }
-
-    fun onRepeatChange(repeat: Boolean) {
-        form.update { it.copy(repeatMonthly = repeat, endDate = if (repeat) it.endDate else null) }
+    fun onDayOfMonthChange(value: String) {
+        form.update { it.copy(dayOfMonthText = value.filter { ch -> ch.isDigit() }.take(2), dayError = false) }
     }
 
     fun onEndDateChange(date: LocalDate?) {
         form.update { it.copy(endDate = date) }
+    }
+
+    fun onActiveChange(active: Boolean) {
+        form.update { it.copy(active = active) }
     }
 
     fun save() {
@@ -125,34 +134,32 @@ class EditTransactionViewModel(
             form.update { it.copy(amountError = true) }
             return
         }
+        val day = form.value.dayOfMonthText.toIntOrNull()
+        if (day == null || day !in 1..31) {
+            form.update { it.copy(dayError = true) }
+            return
+        }
         val state = uiState.value
-        if (state.categoryId == 0L) return
+        if (state.categoryId == 0L || state.id == 0L) return
         viewModelScope.launch {
-            repository.saveTransaction(
-                TransactionEntity(
+            val nextEpochDay = if (day != state.form.originalDayOfMonth) {
+                BudgetRepository.occurrenceOnOrAfter(LocalDate.now(), day).toEpochDay()
+            } else {
+                state.form.originalNextEpochDay
+            }
+            repository.updateRecurringRule(
+                RecurringRuleEntity(
                     id = state.id,
                     amountCents = cents,
                     type = state.type,
                     categoryId = state.categoryId,
                     note = state.note.trim(),
-                    epochDay = state.date.toEpochDay()
+                    dayOfMonth = day,
+                    nextEpochDay = nextEpochDay,
+                    active = state.active,
+                    endEpochDay = state.endDate?.toEpochDay()
                 )
             )
-            if (state.id == 0L && state.repeatMonthly) {
-                val next = BudgetRepository.nextOccurrence(state.date, state.date.dayOfMonth)
-                repository.addRecurringRule(
-                    RecurringRuleEntity(
-                        amountCents = cents,
-                        type = state.type,
-                        categoryId = state.categoryId,
-                        note = state.note.trim(),
-                        dayOfMonth = state.date.dayOfMonth,
-                        nextEpochDay = next.toEpochDay(),
-                        active = true,
-                        endEpochDay = state.endDate?.toEpochDay()
-                    )
-                )
-            }
             form.update { it.copy(saved = true) }
         }
     }
@@ -161,7 +168,7 @@ class EditTransactionViewModel(
         val id = form.value.id
         if (id == 0L) return
         viewModelScope.launch {
-            repository.getTransaction(id)?.let { repository.deleteTransaction(it) }
+            repository.getRecurringRule(id)?.let { repository.deleteRecurringRule(it) }
             form.update { it.copy(saved = true) }
         }
     }
@@ -174,10 +181,10 @@ class EditTransactionViewModel(
 
     class Factory(
         private val repository: BudgetRepository,
-        private val transactionId: Long
+        private val ruleId: Long
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            EditTransactionViewModel(repository, transactionId) as T
+            EditRecurringViewModel(repository, ruleId) as T
     }
 }

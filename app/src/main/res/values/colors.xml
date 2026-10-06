@@ -2,4 +2,7 @@
 <resources>
     <color name="ic_launcher_background">#1B5E4B</color>
     <color name="seed">#1B5E4B</color>
+    <!-- Match Compose LightColors.background — prevents gray flash behind sliding content -->
+    <color name="window_background">#FFF4F7F5</color>
+    <color name="brand_primary">#FF1B5E4B</color>
 </resources>

@@ -1,20 +1,26 @@
 package com.budzetdomowy.app.data
 
+import androidx.annotation.StringRes
+import com.budzetdomowy.app.R
+
 enum class TransactionType {
     EXPENSE,
     INCOME
 }
 
-enum class Category(val labelPl: String, val forType: TransactionType) {
-    FOOD("Jedzenie", TransactionType.EXPENSE),
-    TRANSPORT("Transport", TransactionType.EXPENSE),
-    BILLS("Rachunki", TransactionType.EXPENSE),
-    ENTERTAINMENT("Rozrywka", TransactionType.EXPENSE),
-    OTHER("Inne", TransactionType.EXPENSE),
-    SALARY("Przychód", TransactionType.INCOME);
+enum class BuiltInCategory(
+    @StringRes val labelRes: Int,
+    val forType: TransactionType
+) {
+    FOOD(R.string.category_food, TransactionType.EXPENSE),
+    TRANSPORT(R.string.category_transport, TransactionType.EXPENSE),
+    BILLS(R.string.category_bills, TransactionType.EXPENSE),
+    ENTERTAINMENT(R.string.category_entertainment, TransactionType.EXPENSE),
+    OTHER(R.string.category_other, TransactionType.EXPENSE),
+    SALARY(R.string.category_salary, TransactionType.INCOME);
 
     companion object {
-        fun forType(type: TransactionType): List<Category> =
-            entries.filter { it.forType == type }
+        fun fromKey(key: String?): BuiltInCategory? =
+            key?.let { value -> entries.find { it.name == value } }
     }
 }

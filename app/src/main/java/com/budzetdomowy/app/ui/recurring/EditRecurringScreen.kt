@@ -1,14 +1,12 @@
-package com.budzetdomowy.app.ui.add
+package com.budzetdomowy.app.ui.recurring
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -47,28 +45,26 @@ import com.budzetdomowy.app.ui.ScrollColumn
 import com.budzetdomowy.app.util.categoryLabel
 import com.budzetdomowy.app.util.formatPl
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneOffset
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun EditTransactionScreen(
-    viewModel: EditTransactionViewModel,
+fun EditRecurringScreen(
+    viewModel: EditRecurringViewModel,
     onDone: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    var showDatePicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
 
-    LaunchedEffect(state.saved) {
-        if (state.saved) onDone()
+    LaunchedEffect(state.saved, state.missing) {
+        if (state.saved || state.missing) onDone()
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(if (state.id == 0L) stringResource(R.string.new_transaction) else stringResource(R.string.edit_transaction))
-                },
+                title = { Text(stringResource(R.string.edit_recurring)) },
                 navigationIcon = {
                     IconButton(onClick = onDone) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
@@ -128,12 +124,18 @@ fun EditTransactionScreen(
                 }
             }
 
-            OutlinedButton(
-                onClick = { showDatePicker = true },
+            OutlinedTextField(
+                value = state.dayOfMonthText,
+                onValueChange = viewModel::onDayOfMonthChange,
+                label = { Text(stringResource(R.string.recurring_day_of_month)) },
+                isError = state.dayError,
+                supportingText = {
+                    if (state.dayError) Text(stringResource(R.string.recurring_day_error))
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.date_button, state.date.formatPl()))
-            }
+            )
 
             OutlinedTextField(
                 value = state.note,
@@ -143,33 +145,30 @@ fun EditTransactionScreen(
                 maxLines = 3
             )
 
-            if (state.id == 0L) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(stringResource(R.string.repeat_monthly), modifier = Modifier.weight(1f))
-                    Switch(
-                        checked = state.repeatMonthly,
-                        onCheckedChange = viewModel::onRepeatChange
-                    )
+            OutlinedButton(
+                onClick = { showEndPicker = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                val endLabel = state.endDate?.formatPl()
+                    ?: stringResource(R.string.recurring_no_end)
+                Text(stringResource(R.string.recurring_end_button, endLabel))
+            }
+            if (state.endDate != null) {
+                TextButton(onClick = { viewModel.onEndDateChange(null) }) {
+                    Text(stringResource(R.string.recurring_clear_end))
                 }
-                if (state.repeatMonthly) {
-                    OutlinedButton(
-                        onClick = { showEndPicker = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        val endLabel = state.endDate?.formatPl()
-                            ?: stringResource(R.string.recurring_no_end)
-                        Text(stringResource(R.string.recurring_end_button, endLabel))
-                    }
-                    if (state.endDate != null) {
-                        TextButton(onClick = { viewModel.onEndDateChange(null) }) {
-                            Text(stringResource(R.string.recurring_clear_end))
-                        }
-                    }
-                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(stringResource(R.string.recurring_active), modifier = Modifier.weight(1f))
+                Switch(
+                    checked = state.active,
+                    onCheckedChange = viewModel::onActiveChange
+                )
             }
 
             Spacer(Modifier.height(8.dp))
@@ -182,39 +181,10 @@ fun EditTransactionScreen(
         }
     }
 
-    if (showDatePicker) {
-        val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = state.date
-                .atStartOfDay(ZoneOffset.UTC)
-                .toInstant()
-                .toEpochMilli()
-        )
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        pickerState.selectedDateMillis?.let { millis ->
-                            val date = Instant.ofEpochMilli(millis)
-                                .atZone(ZoneOffset.UTC)
-                                .toLocalDate()
-                            viewModel.onDateChange(date)
-                        }
-                        showDatePicker = false
-                    }
-                ) { Text(stringResource(R.string.ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.cancel)) }
-            }
-        ) {
-        DatePicker(state = pickerState)
-        }
-    }
-
     if (showEndPicker) {
+        val initial = state.endDate ?: LocalDate.now().plusMonths(1)
         val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = (state.endDate ?: state.date.plusMonths(1))
+            initialSelectedDateMillis = initial
                 .atStartOfDay(ZoneOffset.UTC)
                 .toInstant()
                 .toEpochMilli()
@@ -235,7 +205,9 @@ fun EditTransactionScreen(
                 ) { Text(stringResource(R.string.ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showEndPicker = false }) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = { showEndPicker = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
             }
         ) {
             DatePicker(state = pickerState)
