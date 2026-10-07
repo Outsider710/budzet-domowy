@@ -15,4 +15,16 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "BudzetDomowy"
-include(":app")
+include(
+    ":app",
+    ":core:data",
+    ":core:ui",
+    ":feature:home",
+    ":feature:transactions",
+    ":feature:categories",
+    ":feature:goals",
+    ":feature:recurring",
+    ":feature:report",
+    ":feature:settings",
+    ":feature:splash",
+)

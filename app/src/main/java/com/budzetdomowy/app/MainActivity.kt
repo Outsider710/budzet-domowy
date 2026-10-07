@@ -8,40 +8,70 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Autorenew
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.budzetdomowy.app.ui.add.EditTransactionScreen
-import com.budzetdomowy.app.ui.add.EditTransactionViewModel
-import com.budzetdomowy.app.ui.categories.CategoriesScreen
-import com.budzetdomowy.app.ui.categories.CategoriesViewModel
-import com.budzetdomowy.app.ui.goals.GoalDetailScreen
-import com.budzetdomowy.app.ui.goals.GoalDetailViewModel
-import com.budzetdomowy.app.ui.goals.GoalsScreen
-import com.budzetdomowy.app.ui.goals.GoalsViewModel
-import com.budzetdomowy.app.ui.home.HomeScreen
-import com.budzetdomowy.app.ui.home.HomeViewModel
-import com.budzetdomowy.app.ui.recurring.EditRecurringScreen
-import com.budzetdomowy.app.ui.recurring.EditRecurringViewModel
-import com.budzetdomowy.app.ui.recurring.RecurringScreen
-import com.budzetdomowy.app.ui.recurring.RecurringViewModel
-import com.budzetdomowy.app.ui.report.ReportScreen
-import com.budzetdomowy.app.ui.report.ReportViewModel
-import com.budzetdomowy.app.ui.settings.SettingsScreen
-import com.budzetdomowy.app.ui.theme.BudzetTheme
+import com.budzetdomowy.app.ui.BudzetBottomBar
+import com.budzetdomowy.app.ui.BudzetBottomTab
+import com.budzetdomowy.core.data.ThemePreferences
+import com.budzetdomowy.core.ui.R as UiR
+import com.budzetdomowy.core.ui.theme.BudzetTheme
+import com.budzetdomowy.feature.categories.CategoriesScreen
+import com.budzetdomowy.feature.goals.GoalDetailScreen
+import com.budzetdomowy.feature.goals.GoalsScreen
+import com.budzetdomowy.feature.home.HomeScreen
+import com.budzetdomowy.feature.recurring.EditRecurringScreen
+import com.budzetdomowy.feature.recurring.RecurringScreen
+import com.budzetdomowy.feature.report.ReportScreen
+import com.budzetdomowy.feature.settings.SettingsScreen
+import com.budzetdomowy.feature.splash.SplashScreen
+import com.budzetdomowy.feature.transactions.EditTransactionScreen
+import java.util.concurrent.atomic.AtomicBoolean
+import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
+import org.koin.core.parameter.parametersOf
+
+private val bottomTabs = listOf(
+    BudzetBottomTab("home", UiR.string.nav_home, Icons.Default.Home),
+    BudzetBottomTab("report", UiR.string.report, Icons.Default.BarChart),
+    BudzetBottomTab("goals", UiR.string.nav_goals, Icons.Default.Savings),
+    BudzetBottomTab("recurring", UiR.string.nav_recurring, Icons.Default.Autorenew)
+)
+
+private val bottomBarRoutes = bottomTabs.map { it.route }.toSet()
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        val composeReady = AtomicBoolean(false)
+        splashScreen.setKeepOnScreenCondition { !composeReady.get() }
+
         if (Build.VERSION.SDK_INT >= 35) {
-            // Android 15+: avoid deprecated setStatusBarColor / setNavigationBarColor / SHORT_EDGES
             WindowCompat.setDecorFitsSystemWindows(window, false)
             window.attributes = window.attributes.apply {
                 layoutInDisplayCutoutMode =
@@ -53,109 +83,142 @@ class MainActivity : ComponentActivity() {
                 navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT)
             )
         }
-        val app = application as BudzetApp
+        // Prevent the system translucent scrim above the gesture/nav bar ("przesłona").
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
+
+        val showIntro = savedInstanceState == null
         setContent {
-            val themeMode by app.themePreferences.mode.collectAsStateWithLifecycle()
+            SideEffect { composeReady.set(true) }
+            val themePreferences: ThemePreferences = koinInject()
+            val themeMode by themePreferences.mode.collectAsStateWithLifecycle()
             BudzetTheme(themeMode = themeMode) {
-                BudzetNavHost(app)
+                var showSplash by remember { mutableStateOf(showIntro) }
+                if (showSplash) {
+                    SplashScreen(onFinished = { showSplash = false })
+                } else {
+                    BudzetNavHost(themePreferences)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun BudzetNavHost(app: BudzetApp) {
+private fun BudzetNavHost(themePreferences: ThemePreferences) {
     val navController = rememberNavController()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+    val showBottomBar = currentRoute in bottomBarRoutes
 
-    NavHost(navController = navController, startDestination = "home") {
-        composable("home") {
-            val vm: HomeViewModel = viewModel(factory = HomeViewModel.Factory(app.repository))
-            HomeScreen(
-                viewModel = vm,
-                onAdd = { navController.navigate("edit/0") },
-                onEdit = { id -> navController.navigate("edit/$id") },
-                onReport = { navController.navigate("report") },
-                onGoals = { navController.navigate("goals") },
-                onRecurring = { navController.navigate("recurring") },
-                onSettings = { navController.navigate("settings") }
-            )
+    fun navigateToTab(route: String) {
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
         }
-        composable(
-            route = "edit/{id}",
-            arguments = listOf(navArgument("id") { type = NavType.LongType })
-        ) { entry ->
-            val id = entry.arguments?.getLong("id") ?: 0L
-            val vm: EditTransactionViewModel = viewModel(
-                factory = EditTransactionViewModel.Factory(app.repository, id)
-            )
-            EditTransactionScreen(
-                viewModel = vm,
-                onDone = { navController.popBackStack() }
-            )
+    }
+
+    // Floating overlay bar — content scrolls underneath (no empty cream band / "przesłona").
+    Box(Modifier.fillMaxSize()) {
+        NavHost(
+            navController = navController,
+            startDestination = "home",
+            modifier = Modifier.fillMaxSize()
+        ) {
+            composable("home") {
+                HomeScreen(
+                    viewModel = koinViewModel(),
+                    onEdit = { id -> navController.navigate("edit/$id") },
+                    onGoals = { navigateToTab("goals") },
+                    onSettings = { navController.navigate("settings") }
+                )
+            }
+            composable(
+                route = "edit/{id}",
+                arguments = listOf(navArgument("id") { type = NavType.LongType })
+            ) { entry ->
+                val id = entry.arguments?.getLong("id") ?: 0L
+                EditTransactionScreen(
+                    viewModel = koinViewModel { parametersOf(id) },
+                    onDone = { navController.popBackStack() }
+                )
+            }
+            composable("report") {
+                ReportScreen(
+                    viewModel = koinViewModel(),
+                    showBack = false,
+                    onBack = { navigateToTab("home") }
+                )
+            }
+            composable("settings") {
+                val themeMode by themePreferences.mode.collectAsStateWithLifecycle()
+                SettingsScreen(
+                    themeMode = themeMode,
+                    onThemeModeChange = themePreferences::setMode,
+                    onBack = { navController.popBackStack() },
+                    onCategories = { navController.navigate("categories") },
+                    onRecurring = { navigateToTab("recurring") },
+                    appName = stringResource(R.string.app_name),
+                    versionName = BuildConfig.VERSION_NAME,
+                    versionCode = BuildConfig.VERSION_CODE,
+                    privacyUrl = stringResource(R.string.privacy_policy_url)
+                )
+            }
+            composable("categories") {
+                CategoriesScreen(
+                    viewModel = koinViewModel(),
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable("recurring") {
+                RecurringScreen(
+                    viewModel = koinViewModel(),
+                    showBack = false,
+                    onBack = { navigateToTab("home") },
+                    onEdit = { id -> navController.navigate("recurring/$id") }
+                )
+            }
+            composable(
+                route = "recurring/{id}",
+                arguments = listOf(navArgument("id") { type = NavType.LongType })
+            ) { entry ->
+                val id = entry.arguments?.getLong("id") ?: 0L
+                EditRecurringScreen(
+                    viewModel = koinViewModel { parametersOf(id) },
+                    onDone = { navController.popBackStack() }
+                )
+            }
+            composable("goals") {
+                GoalsScreen(
+                    viewModel = koinViewModel(),
+                    showBack = false,
+                    onBack = { navigateToTab("home") },
+                    onOpenGoal = { id -> navController.navigate("goal/$id") }
+                )
+            }
+            composable(
+                route = "goal/{id}",
+                arguments = listOf(navArgument("id") { type = NavType.LongType })
+            ) { entry ->
+                val id = entry.arguments?.getLong("id") ?: 0L
+                GoalDetailScreen(
+                    viewModel = koinViewModel { parametersOf(id) },
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
-        composable("report") {
-            val vm: ReportViewModel = viewModel(
-                factory = ReportViewModel.Factory(app, app.repository)
-            )
-            ReportScreen(
-                viewModel = vm,
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable("settings") {
-            val themeMode by app.themePreferences.mode.collectAsStateWithLifecycle()
-            SettingsScreen(
-                themeMode = themeMode,
-                onThemeModeChange = app.themePreferences::setMode,
-                onBack = { navController.popBackStack() },
-                onCategories = { navController.navigate("categories") },
-                onRecurring = { navController.navigate("recurring") }
-            )
-        }
-        composable("categories") {
-            val vm: CategoriesViewModel = viewModel(factory = CategoriesViewModel.Factory(app.repository))
-            CategoriesScreen(viewModel = vm, onBack = { navController.popBackStack() })
-        }
-        composable("recurring") {
-            val vm: RecurringViewModel = viewModel(factory = RecurringViewModel.Factory(app.repository))
-            RecurringScreen(
-                viewModel = vm,
-                onBack = { navController.popBackStack() },
-                onEdit = { id -> navController.navigate("recurring/$id") }
-            )
-        }
-        composable(
-            route = "recurring/{id}",
-            arguments = listOf(navArgument("id") { type = NavType.LongType })
-        ) { entry ->
-            val id = entry.arguments?.getLong("id") ?: 0L
-            val vm: EditRecurringViewModel = viewModel(
-                factory = EditRecurringViewModel.Factory(app.repository, id)
-            )
-            EditRecurringScreen(
-                viewModel = vm,
-                onDone = { navController.popBackStack() }
-            )
-        }
-        composable("goals") {
-            val vm: GoalsViewModel = viewModel(factory = GoalsViewModel.Factory(app.repository))
-            GoalsScreen(
-                viewModel = vm,
-                onBack = { navController.popBackStack() },
-                onOpenGoal = { id -> navController.navigate("goal/$id") }
-            )
-        }
-        composable(
-            route = "goal/{id}",
-            arguments = listOf(navArgument("id") { type = NavType.LongType })
-        ) { entry ->
-            val id = entry.arguments?.getLong("id") ?: 0L
-            val vm: GoalDetailViewModel = viewModel(
-                factory = GoalDetailViewModel.Factory(app.repository, id)
-            )
-            GoalDetailScreen(
-                viewModel = vm,
-                onBack = { navController.popBackStack() }
+
+        if (showBottomBar) {
+            BudzetBottomBar(
+                tabs = bottomTabs,
+                selectedRoute = currentRoute,
+                onTabSelected = ::navigateToTab,
+                onAddClick = { navController.navigate("edit/0") },
+                modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
     }

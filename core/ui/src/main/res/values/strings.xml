@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Common -->
+    <string name="back">Wstecz</string>
+    <string name="save">Zapisz</string>
+    <string name="delete">Usuń</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Anuluj</string>
+    <string name="income">Przychody</string>
+    <string name="expenses">Wydatki</string>
+    <string name="balance">Saldo</string>
+    <string name="saved">Na cele</string>
+
+    <!-- Home / bottom nav -->
+    <string name="nav_home">Start</string>
+    <string name="nav_goals">Cele</string>
+    <string name="nav_recurring">Cykliczne</string>
+    <string name="cd_report">Raport</string>
+    <string name="cd_settings">Ustawienia</string>
+    <string name="cd_add_transaction">Dodaj transakcję</string>
+    <string name="cd_previous_month">Poprzedni miesiąc</string>
+    <string name="cd_next_month">Następny miesiąc</string>
+    <string name="go_current_month">Dziś</string>
+    <string name="transactions">Transakcje</string>
+    <string name="empty_transactions">Brak transakcji w tym miesiącu.\nDodaj pierwszy przychód lub wydatek.</string>
+    <string name="month_balance">Saldo miesiąca</string>
+    <string name="transaction_subtitle">%1$s · %2$s</string>
+
+    <!-- Edit transaction -->
+    <string name="new_transaction">Nowa transakcja</string>
+    <string name="edit_transaction">Edytuj transakcję</string>
+    <string name="type">Typ</string>
+    <string name="expense">Wydatek</string>
+    <string name="income_type">Przychód</string>
+    <string name="amount_label">Kwota (zł)</string>
+    <string name="amount_error">Podaj poprawną kwotę większą od zera</string>
+    <string name="category">Kategoria</string>
+    <string name="date_button">Data: %1$s</string>
+    <string name="note_optional">Notatka (opcjonalnie)</string>
+
+    <!-- Categories -->
+
+
+
+
+
+
+    <!-- Report -->
+    <string name="report">Raport</string>
+    <string name="period">Okres</string>
+    <string name="period_week">Tydzień</string>
+    <string name="period_month">Miesiąc</string>
+    <string name="period_quarter">Kwartał</string>
+    <string name="period_year">Rok</string>
+    <string name="income_vs_expenses">Przychody vs wydatki</string>
+    <string name="no_data_in_period">Brak danych w wybranym okresie.</string>
+    <string name="period_summary">Podsumowanie okresu</string>
+    <string name="week_bucket">T%1$d</string>
+    <string name="date_range">%1$s – %2$s</string>
+
+    <!-- Settings -->
+    <string name="settings">Ustawienia</string>
+    <string name="version_format">Wersja %1$s (%2$d)</string>
+    <string name="settings_privacy_body">Wszystkie dane (transakcje i kategorie) są przechowywane wyłącznie lokalnie na tym urządzeniu. Aplikacja nie wymaga konta, internetu ani reklam.</string>
+    <string name="privacy_policy">Polityka prywatności</string>
+    <string name="toast_no_browser">Brak przeglądarki do otwarcia polityki</string>
+    <string name="toast_privacy_open_failed">Nie udało się otworzyć polityki prywatności</string>
+    <string name="theme_title">Motyw</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Jasny</string>
+    <string name="theme_dark">Ciemny</string>
+
+    <string name="cd_goals">Cele</string>
+    <string name="goals">Cele oszczędnościowe</string>
+    <string name="add_goal">Nowy cel</string>
+    <string name="goal_name">Nazwa celu</string>
+    <string name="goal_target">Kwota docelowa (zł)</string>
+    <string name="empty_goals">Nie masz jeszcze celów.\nDodaj pierwszy, np. wakacje lub poduszkę finansową.</string>
+    <string name="empty_goals_hint">Dodaj cel, aby odkładać osobno od wydatków.</string>
+    <string name="saved_this_month">Odłożone w tym miesiącu: %1$s</string>
+    <string name="add_contribution">Dodaj wpłatę</string>
+    <string name="contributions">Wpłaty</string>
+    <string name="empty_contributions">Brak wpłat na ten cel.</string>
+    <string name="archive_goal">Ukryj cel</string>
+    <string name="goal_missing">Nie znaleziono celu.</string>
+
+    <string name="categories_title">Kategorie i limity</string>
+    <string name="add_category">Nowa kategoria</string>
+    <string name="rename_category">Zmień nazwę</string>
+    <string name="archive_category">Ukryj kategorię</string>
+    <string name="unarchive_category">Pokaż kategorię</string>
+    <string name="monthly_limit">Limit miesięczny (zł)</string>
+    <string name="monthly_limit_hint">Puste pole = bez limitu. Zapisz, aby zastosować.</string>
+
+    <string name="repeat_monthly">Powtarzaj co miesiąc</string>
+    <string name="recurring_button">Płatności cykliczne</string>
+    <string name="recurring_title">Płatności cykliczne</string>
+    <string name="empty_recurring">Brak aktywnych płatności cyklicznych.\nWłącz „Powtarzaj co miesiąc” przy nowej transakcji.</string>
+    <string name="recurring_subtitle">%1$s · dzień %2$d</string>
+    <string name="recurring_start_button">Od: %1$s</string>
+    <string name="recurring_end_button">Do: %1$s</string>
+    <string name="recurring_no_end">bez daty końca</string>
+    <string name="recurring_set_end">Ustaw datę końca</string>
+    <string name="recurring_clear_end">Usuń datę końca</string>
+    <string name="recurring_preview">Następne wpisy</string>
+    <string name="recurring_preview_empty">Brak kolejnych dat — reguła się skończyła.</string>
+    <string name="edit_recurring">Edytuj płatność cykliczną</string>
+    <string name="recurring_day_of_month">Dzień miesiąca (1–31)</string>
+    <string name="recurring_day_error">Podaj dzień od 1 do 31</string>
+    <string name="recurring_active">Aktywna</string>
+
+    <string name="expenses_by_category">Wydatki według kategorii</string>
+    <string name="chart_balance">Bilans</string>
+    <string name="chart_tap_hint">Dotknij słupek lub wycinek, aby zobaczyć szczegóły</string>
+    <string name="chart_total_expenses">Suma wydatków</string>
+
+    <string name="category_name">Nazwa</string>
+    <string name="category_limits">Limity kategorii</string>
+    <string name="app_name">Budżet Domowy</string>
+</resources>

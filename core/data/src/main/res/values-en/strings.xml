@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="category_food">Food</string>
+    <string name="category_transport">Transport</string>
+    <string name="category_bills">Bills</string>
+    <string name="category_entertainment">Entertainment</string>
+    <string name="category_other">Other</string>
+    <string name="category_salary">Income</string>
+</resources>
