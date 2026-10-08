@@ -1,5 +1,12 @@
 package com.budzetdomowy.feature.transactions
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -12,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -35,16 +43,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.budzetdomowy.core.data.TransactionType
 import com.budzetdomowy.core.ui.BudzetTopBar
 import com.budzetdomowy.core.ui.R
-import com.budzetdomowy.core.data.TransactionType
 import com.budzetdomowy.core.ui.ScrollColumn
 import com.budzetdomowy.core.ui.util.categoryLabel
 import com.budzetdomowy.core.ui.util.formatPl
+import com.budzetdomowy.feature.recurring.RecurringNotifyWorker
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -55,11 +66,46 @@ fun EditTransactionScreen(
     onDone: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var showDatePicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
+    var showNotifyPermissionDialog by remember { mutableStateOf(false) }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            viewModel.onNotifyChange(true)
+        } else {
+            showNotifyPermissionDialog = true
+        }
+    }
+
+    fun hasNotificationPermission(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    fun requestNotifyEnable() {
+        if (hasNotificationPermission()) {
+            viewModel.onNotifyChange(true)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            viewModel.onNotifyChange(true)
+        }
+    }
 
     LaunchedEffect(state.saved) {
-        if (state.saved) onDone()
+        if (state.saved) {
+            if (state.notifyEnabled) {
+                RecurringNotifyWorker.enqueueNow(context.applicationContext)
+            }
+            onDone()
+        }
     }
 
     Scaffold(
@@ -167,6 +213,22 @@ fun EditTransactionScreen(
                             Text(stringResource(R.string.recurring_clear_end))
                         }
                     }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            stringResource(R.string.recurring_notify_on_due),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Switch(
+                            checked = state.notifyEnabled,
+                            onCheckedChange = { enabled ->
+                                if (enabled) requestNotifyEnable() else viewModel.onNotifyChange(false)
+                            }
+                        )
+                    }
                 }
             }
 
@@ -238,5 +300,31 @@ fun EditTransactionScreen(
         ) {
             DatePicker(state = pickerState)
         }
+    }
+
+    if (showNotifyPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showNotifyPermissionDialog = false },
+            title = { Text(stringResource(R.string.recurring_notify_permission_title)) },
+            text = { Text(stringResource(R.string.recurring_notify_permission_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showNotifyPermissionDialog = false
+                        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        }
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Text(stringResource(R.string.recurring_notify_open_settings))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNotifyPermissionDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 }

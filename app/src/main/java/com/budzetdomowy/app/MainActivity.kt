@@ -1,9 +1,9 @@
 package com.budzetdomowy.app
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -49,7 +49,9 @@ import com.budzetdomowy.feature.report.ReportScreen
 import com.budzetdomowy.feature.settings.SettingsScreen
 import com.budzetdomowy.feature.splash.SplashScreen
 import com.budzetdomowy.feature.transactions.EditTransactionScreen
+import com.budzetdomowy.feature.widget.WidgetNav
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
@@ -63,7 +65,14 @@ private val bottomTabs = listOf(
 
 private val bottomBarRoutes = bottomTabs.map { it.route }.toSet()
 
+private data class PendingNav(
+    val destination: String,
+    val transactionId: Long = 0L
+)
+
 class MainActivity : ComponentActivity() {
+    private val pendingNav = MutableStateFlow<PendingNav?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -71,42 +80,58 @@ class MainActivity : ComponentActivity() {
         val composeReady = AtomicBoolean(false)
         splashScreen.setKeepOnScreenCondition { !composeReady.get() }
 
-        if (Build.VERSION.SDK_INT >= 35) {
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-            window.attributes = window.attributes.apply {
-                layoutInDisplayCutoutMode =
-                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-            }
-        } else {
-            enableEdgeToEdge(
-                statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
-                navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT)
-            )
-        }
-        // Prevent the system translucent scrim above the gesture/nav bar ("przesłona").
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT)
+        )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
         }
 
-        val showIntro = savedInstanceState == null
+        pendingNav.value = pendingFrom(intent)
+        val showIntro = savedInstanceState == null && pendingNav.value == null
+
         setContent {
             SideEffect { composeReady.set(true) }
             val themePreferences: ThemePreferences = koinInject()
             val themeMode by themePreferences.mode.collectAsStateWithLifecycle()
+            val navRequest by pendingNav.collectAsStateWithLifecycle()
             BudzetTheme(themeMode = themeMode) {
                 var showSplash by remember { mutableStateOf(showIntro) }
                 if (showSplash) {
                     SplashScreen(onFinished = { showSplash = false })
                 } else {
-                    BudzetNavHost(themePreferences)
+                    BudzetNavHost(
+                        themePreferences = themePreferences,
+                        pendingNav = navRequest,
+                        onPendingConsumed = { pendingNav.value = null }
+                    )
                 }
             }
         }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingNav.value = pendingFrom(intent)
+    }
+
+    private fun pendingFrom(intent: Intent?): PendingNav? {
+        val destination = WidgetNav.parseDestination(intent) ?: return null
+        return PendingNav(
+            destination = destination,
+            transactionId = WidgetNav.parseTransactionId(intent)
+        )
+    }
 }
 
 @Composable
-private fun BudzetNavHost(themePreferences: ThemePreferences) {
+private fun BudzetNavHost(
+    themePreferences: ThemePreferences,
+    pendingNav: PendingNav?,
+    onPendingConsumed: () -> Unit
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -122,7 +147,19 @@ private fun BudzetNavHost(themePreferences: ThemePreferences) {
         }
     }
 
-    // Floating overlay bar — content scrolls underneath (no empty cream band / "przesłona").
+    LaunchedEffect(pendingNav) {
+        val request = pendingNav ?: return@LaunchedEffect
+        when (request.destination) {
+            WidgetNav.DEST_EDIT -> {
+                navigateToTab("home")
+                navController.navigate("edit/${request.transactionId}")
+            }
+            WidgetNav.DEST_RECURRING -> navigateToTab("recurring")
+            WidgetNav.DEST_HOME -> navigateToTab("home")
+        }
+        onPendingConsumed()
+    }
+
     Box(Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
@@ -138,12 +175,19 @@ private fun BudzetNavHost(themePreferences: ThemePreferences) {
                 )
             }
             composable(
-                route = "edit/{id}",
-                arguments = listOf(navArgument("id") { type = NavType.LongType })
+                route = "edit/{id}?repeatMonthly={repeatMonthly}",
+                arguments = listOf(
+                    navArgument("id") { type = NavType.LongType },
+                    navArgument("repeatMonthly") {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    }
+                )
             ) { entry ->
                 val id = entry.arguments?.getLong("id") ?: 0L
+                val repeatMonthly = entry.arguments?.getBoolean("repeatMonthly") ?: false
                 EditTransactionScreen(
-                    viewModel = koinViewModel { parametersOf(id) },
+                    viewModel = koinViewModel { parametersOf(id, repeatMonthly) },
                     onDone = { navController.popBackStack() }
                 )
             }
@@ -156,9 +200,12 @@ private fun BudzetNavHost(themePreferences: ThemePreferences) {
             }
             composable("settings") {
                 val themeMode by themePreferences.mode.collectAsStateWithLifecycle()
+                val notificationsEnabled by themePreferences.notificationsEnabled.collectAsStateWithLifecycle()
                 SettingsScreen(
                     themeMode = themeMode,
                     onThemeModeChange = themePreferences::setMode,
+                    notificationsEnabled = notificationsEnabled,
+                    onNotificationsEnabledChange = themePreferences::setNotificationsEnabled,
                     onBack = { navController.popBackStack() },
                     onCategories = { navController.navigate("categories") },
                     onRecurring = { navigateToTab("recurring") },
@@ -217,7 +264,14 @@ private fun BudzetNavHost(themePreferences: ThemePreferences) {
                 tabs = bottomTabs,
                 selectedRoute = currentRoute,
                 onTabSelected = ::navigateToTab,
-                onAddClick = { navController.navigate("edit/0") },
+                onAddClick = {
+                    val route = if (currentRoute == "recurring") {
+                        "edit/0?repeatMonthly=true"
+                    } else {
+                        "edit/0"
+                    }
+                    navController.navigate(route)
+                },
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }

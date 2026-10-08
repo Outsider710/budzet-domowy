@@ -1,6 +1,7 @@
 package com.budzetdomowy.core.ui.theme
 
 import android.app.Activity
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -85,11 +86,8 @@ fun BudzetTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as? Activity)?.window ?: return@SideEffect
-            val bg = colorScheme.background.toArgb()
-            window.decorView.setBackgroundColor(bg)
-            window.navigationBarColor = android.graphics.Color.TRANSPARENT
-            window.statusBarColor = colorScheme.primary.toArgb()
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            window.decorView.setBackgroundColor(colorScheme.background.toArgb())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 window.isNavigationBarContrastEnforced = false
             }
             val controller = WindowCompat.getInsetsController(window, view)

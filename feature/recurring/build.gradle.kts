@@ -28,6 +28,8 @@ dependencies {
     implementation(platform(libs.koin.bom))
     implementation(libs.bundles.compose)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.bundles.koin)
     implementation(project(":core:data"))
     implementation(project(":core:ui"))

@@ -6,7 +6,12 @@ import org.koin.dsl.module
 val coreDataModule = module {
     single { AppDatabase.get(androidContext()) }
     single { get<AppDatabase>().budgetDao() }
-    single { BudgetRepository(get()) }
+    single {
+        BudgetRepository(
+            dao = get(),
+            widgetRefresh = getOrNull<WidgetRefresh>() ?: NoOpWidgetRefresh
+        )
+    }
     single { ThemePreferences(androidContext()) }
     single { SelectedMonthStore() }
 }

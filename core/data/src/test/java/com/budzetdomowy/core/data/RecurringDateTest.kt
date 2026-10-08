@@ -2,6 +2,8 @@ package com.budzetdomowy.core.data
 
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RecurringDateTest {
@@ -38,5 +40,35 @@ class RecurringDateTest {
             ),
             dates
         )
+    }
+
+    @Test
+    fun isDueOnMatchesDayOfMonth() {
+        val rule = RecurringRuleEntity(
+            amountCents = 1000,
+            type = TransactionType.EXPENSE,
+            categoryId = 1,
+            dayOfMonth = 7,
+            startEpochDay = LocalDate.of(2026, 1, 1).toEpochDay(),
+            nextEpochDay = LocalDate.of(2026, 11, 7).toEpochDay(),
+            active = true
+        )
+        assertTrue(rule.isDueOn(LocalDate.of(2026, 10, 7)))
+        assertFalse(rule.isDueOn(LocalDate.of(2026, 10, 8)))
+    }
+
+    @Test
+    fun isDueOnClampsEndOfMonth() {
+        val rule = RecurringRuleEntity(
+            amountCents = 1000,
+            type = TransactionType.EXPENSE,
+            categoryId = 1,
+            dayOfMonth = 31,
+            startEpochDay = LocalDate.of(2026, 1, 1).toEpochDay(),
+            nextEpochDay = LocalDate.of(2026, 3, 31).toEpochDay(),
+            active = true
+        )
+        assertTrue(rule.isDueOn(LocalDate.of(2026, 2, 28)))
+        assertFalse(rule.isDueOn(LocalDate.of(2026, 2, 27)))
     }
 }

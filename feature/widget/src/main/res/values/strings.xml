@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Budżet Domowy — saldo</string>
+    <string name="widget_description">Saldo bieżącego miesiąca i szybkie dodanie wydatku</string>
+    <string name="widget_add_expense">Dodaj wydatek</string>
+    <string name="widget_budget_alert">Przekroczono limit kategorii</string>
+    <string name="widget_income_short">Przych.:</string>
+    <string name="widget_expense_short">Wyd.:</string>
+    <string name="widget_preview_month">Bieżący miesiąc</string>
+    <string name="widget_preview_balance">0,00 zł</string>
+    <string name="widget_preview_detail">Przych. · Wyd.</string>
+</resources>

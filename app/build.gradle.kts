@@ -86,6 +86,7 @@ dependencies {
     implementation(project(":feature:report"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:splash"))
+    implementation(project(":feature:widget"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

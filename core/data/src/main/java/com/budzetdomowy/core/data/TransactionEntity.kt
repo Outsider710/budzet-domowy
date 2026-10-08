@@ -56,7 +56,8 @@ data class RecurringRuleEntity(
     val startEpochDay: Long,
     val nextEpochDay: Long,
     val active: Boolean = true,
-    val endEpochDay: Long? = null
+    val endEpochDay: Long? = null,
+    val notifyEnabled: Boolean = false
 )
 
 data class GoalWithSaved(

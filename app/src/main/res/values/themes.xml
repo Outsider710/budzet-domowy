@@ -3,8 +3,8 @@
     <style name="Theme.BudzetDomowy" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/window_background</item>
         <item name="android:colorBackground">@color/window_background</item>
-        <item name="android:navigationBarColor">@color/window_background</item>
-        <item name="android:statusBarColor">@color/brand_primary</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
     </style>
 
     <style name="Theme.BudzetDomowy.Splash" parent="Theme.SplashScreen">

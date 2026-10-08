@@ -109,6 +109,21 @@
     <string name="recurring_day_of_month">Dzień miesiąca (1–31)</string>
     <string name="recurring_day_error">Podaj dzień od 1 do 31</string>
     <string name="recurring_active">Aktywna</string>
+    <string name="recurring_notify_on_due">Powiadomienie w dniu płatności</string>
+    <string name="recurring_notify_permission_title">Włącz powiadomienia</string>
+    <string name="recurring_notify_permission_body">Aby przypominać o płatnościach cyklicznych, aplikacja potrzebuje uprawnienia do powiadomień.</string>
+    <string name="recurring_notify_open_settings">Ustawienia</string>
+    <string name="recurring_notify_channel">Płatności cykliczne</string>
+    <string name="recurring_notify_channel_desc">Przypomnienia w dniu zaplanowanej płatności</string>
+    <string name="recurring_notify_title">Płatność cykliczna dziś</string>
+    <string name="recurring_notify_single">Dziś: %1$s</string>
+    <string name="recurring_notify_multi">Dziś %1$d płatności cyklicznych</string>
+    <string name="recurring_notify_line">%1$s · %2$s</string>
+    <string name="settings_notifications">Powiadomienia</string>
+    <string name="settings_notifications_enabled">Powiadomienia aplikacji</string>
+    <string name="settings_notifications_disable_title">Wyłączyć powiadomienia?</string>
+    <string name="settings_notifications_disable_body">Wszystkie aktywne powiadomienia o płatnościach cyklicznych zostaną wyciszone. Otworzymy ustawienia systemowe — wyłącz tam powiadomienia dla tej aplikacji.</string>
+    <string name="settings_notifications_disable_confirm">Otwórz ustawienia</string>
 
     <string name="expenses_by_category">Wydatki według kategorii</string>
     <string name="chart_balance">Bilans</string>

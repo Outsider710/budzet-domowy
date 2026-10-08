@@ -5,7 +5,10 @@ import java.time.YearMonth
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
-class BudgetRepository(private val dao: BudgetDao) {
+class BudgetRepository(
+    private val dao: BudgetDao,
+    private val widgetRefresh: WidgetRefresh = NoOpWidgetRefresh
+) {
     fun observeTransactionsBetween(startEpochDay: Long, endEpochDay: Long): Flow<List<TransactionEntity>> =
         dao.observeTransactionsBetween(startEpochDay, endEpochDay)
 
@@ -21,15 +24,20 @@ class BudgetRepository(private val dao: BudgetDao) {
     suspend fun getTransaction(id: Long): TransactionEntity? = dao.getTransaction(id)
 
     suspend fun saveTransaction(entity: TransactionEntity): Long {
-        return if (entity.id == 0L) {
+        val id = if (entity.id == 0L) {
             dao.insertTransaction(entity)
         } else {
             dao.updateTransaction(entity)
             entity.id
         }
+        notifyWidgets()
+        return id
     }
 
-    suspend fun deleteTransaction(entity: TransactionEntity) = dao.deleteTransaction(entity)
+    suspend fun deleteTransaction(entity: TransactionEntity) {
+        dao.deleteTransaction(entity)
+        notifyWidgets()
+    }
 
     fun observeCategories(): Flow<List<CategoryEntity>> = dao.observeCategories()
 
@@ -63,6 +71,7 @@ class BudgetRepository(private val dao: BudgetDao) {
         } else {
             dao.upsertBudget(CategoryBudgetEntity(categoryId, limitCents))
         }
+        notifyWidgets()
     }
 
     fun observeActiveGoals(): Flow<List<GoalWithSaved>> = dao.observeActiveGoals()
@@ -91,10 +100,12 @@ class BudgetRepository(private val dao: BudgetDao) {
 
     suspend fun addContribution(entity: GoalContributionEntity) {
         dao.insertContribution(entity)
+        notifyWidgets()
     }
 
     suspend fun deleteContribution(entity: GoalContributionEntity) {
         dao.deleteContribution(entity)
+        notifyWidgets()
     }
 
     fun observeRecurringRules(): Flow<List<RecurringRuleEntity>> = dao.observeRecurringRules()
@@ -123,6 +134,7 @@ class BudgetRepository(private val dao: BudgetDao) {
 
     suspend fun materializeDue(today: LocalDate = LocalDate.now()) {
         val rules = dao.getActiveRecurringRules()
+        var changedAny = false
         for (rule in rules) {
             val start = LocalDate.ofEpochDay(rule.startEpochDay)
             var next = LocalDate.ofEpochDay(rule.nextEpochDay)
@@ -146,6 +158,7 @@ class BudgetRepository(private val dao: BudgetDao) {
                 )
                 next = nextOccurrence(next, rule.dayOfMonth)
                 changed = true
+                changedAny = true
             }
             val expired = end != null && next.isAfter(end)
             if (changed || expired) {
@@ -157,6 +170,11 @@ class BudgetRepository(private val dao: BudgetDao) {
                 )
             }
         }
+        if (changedAny) notifyWidgets()
+    }
+
+    private fun notifyWidgets() {
+        widgetRefresh.requestUpdate()
     }
 
     companion object {

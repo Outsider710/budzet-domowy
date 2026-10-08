@@ -1,0 +1,12 @@
+FAIL: Home
+TAP 'Report' @ 880 226
+FAIL: Report (crash? )
+TAP 'Back' @ 74 226
+TAP 'Settings' @ 1006 226
+FAIL: Settings
+TAP 'Add transaction' @ 964 2245
+FAIL: Add form
+EDIT @ 540 700
+FAIL: find 'Save'
+FAIL: After save
+PASS: No FATAL EXCEPTION in session

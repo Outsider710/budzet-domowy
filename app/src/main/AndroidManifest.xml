@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Pozwala otworzyć politykę prywatności w przeglądarce (Android 11+) -->
     <queries>
         <intent>
@@ -20,6 +22,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.BudzetDomowy.Splash"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -27,5 +30,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Explicit merge for OEM launchers that scan the host app manifest -->
+        <receiver
+            android:name="com.budzetdomowy.feature.widget.BudzetAppWidgetReceiver"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/budzet_widget_info" />
+        </receiver>
     </application>
 </manifest>

@@ -27,4 +27,5 @@ include(
     ":feature:report",
     ":feature:settings",
     ":feature:splash",
+    ":feature:widget",
 )

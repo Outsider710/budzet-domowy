@@ -1,5 +1,12 @@
 package com.budzetdomowy.feature.recurring
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -10,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -33,9 +41,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.budzetdomowy.core.ui.BudzetTopBar
 import com.budzetdomowy.core.ui.R
@@ -54,11 +64,46 @@ fun EditRecurringScreen(
     onDone: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
+    var showNotifyPermissionDialog by remember { mutableStateOf(false) }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            viewModel.onNotifyChange(true)
+        } else {
+            showNotifyPermissionDialog = true
+        }
+    }
+
+    fun hasNotificationPermission(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    fun requestNotifyEnable() {
+        if (hasNotificationPermission()) {
+            viewModel.onNotifyChange(true)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            viewModel.onNotifyChange(true)
+        }
+    }
 
     LaunchedEffect(state.saved, state.missing) {
-        if (state.saved || state.missing) onDone()
+        if (state.saved) {
+            RecurringNotifyWorker.enqueueNow(context.applicationContext)
+            onDone()
+        } else if (state.missing) {
+            onDone()
+        }
     }
 
     Scaffold(
@@ -175,6 +220,23 @@ fun EditRecurringScreen(
                 )
             }
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    stringResource(R.string.recurring_notify_on_due),
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked = state.notifyEnabled,
+                    onCheckedChange = { enabled ->
+                        if (enabled) requestNotifyEnable() else viewModel.onNotifyChange(false)
+                    }
+                )
+            }
+
             Spacer(Modifier.height(8.dp))
             Button(
                 onClick = viewModel::save,
@@ -183,6 +245,32 @@ fun EditRecurringScreen(
                 Text(stringResource(R.string.save))
             }
         }
+    }
+
+    if (showNotifyPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showNotifyPermissionDialog = false },
+            title = { Text(stringResource(R.string.recurring_notify_permission_title)) },
+            text = { Text(stringResource(R.string.recurring_notify_permission_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showNotifyPermissionDialog = false
+                        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        }
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Text(stringResource(R.string.recurring_notify_open_settings))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNotifyPermissionDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 
     if (showStartPicker) {

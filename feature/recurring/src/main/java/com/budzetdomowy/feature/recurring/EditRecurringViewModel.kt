@@ -26,6 +26,7 @@ data class EditRecurringForm(
     val startDate: LocalDate = LocalDate.now(),
     val endDate: LocalDate? = null,
     val active: Boolean = true,
+    val notifyEnabled: Boolean = false,
     val originalDayOfMonth: Int = 1,
     val originalStartEpochDay: Long = 0,
     val originalNextEpochDay: Long = 0,
@@ -49,6 +50,7 @@ data class EditRecurringUiState(
     val startDate get() = form.startDate
     val endDate get() = form.endDate
     val active get() = form.active
+    val notifyEnabled get() = form.notifyEnabled
     val amountError get() = form.amountError
     val dayError get() = form.dayError
     val loaded get() = form.loaded
@@ -96,6 +98,7 @@ class EditRecurringViewModel(
                 startDate = LocalDate.ofEpochDay(rule.startEpochDay),
                 endDate = rule.endEpochDay?.let { LocalDate.ofEpochDay(it) },
                 active = rule.active,
+                notifyEnabled = rule.notifyEnabled,
                 originalDayOfMonth = rule.dayOfMonth,
                 originalStartEpochDay = rule.startEpochDay,
                 originalNextEpochDay = rule.nextEpochDay,
@@ -136,6 +139,10 @@ class EditRecurringViewModel(
         form.update { it.copy(active = active) }
     }
 
+    fun onNotifyChange(notifyEnabled: Boolean) {
+        form.update { it.copy(notifyEnabled = notifyEnabled) }
+    }
+
     fun save() {
         val cents = MoneyFormat.parseToCents(form.value.amountText)
         if (cents == null || cents == 0L) {
@@ -170,7 +177,8 @@ class EditRecurringViewModel(
                     startEpochDay = startEpochDay,
                     nextEpochDay = nextEpochDay,
                     active = state.active,
-                    endEpochDay = state.endDate?.toEpochDay()
+                    endEpochDay = state.endDate?.toEpochDay(),
+                    notifyEnabled = state.notifyEnabled
                 )
             )
             form.update { it.copy(saved = true) }

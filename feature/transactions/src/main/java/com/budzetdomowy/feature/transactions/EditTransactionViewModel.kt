@@ -25,6 +25,7 @@ data class EditFormState(
     val note: String = "",
     val date: LocalDate = LocalDate.now(),
     val repeatMonthly: Boolean = false,
+    val notifyEnabled: Boolean = false,
     val endDate: LocalDate? = null,
     val amountError: Boolean = false,
     val loaded: Boolean = false,
@@ -42,6 +43,7 @@ data class EditUiState(
     val note get() = form.note
     val date get() = form.date
     val repeatMonthly get() = form.repeatMonthly
+    val notifyEnabled get() = form.notifyEnabled
     val endDate get() = form.endDate
     val amountError get() = form.amountError
     val loaded get() = form.loaded
@@ -51,10 +53,13 @@ data class EditUiState(
 
 class EditTransactionViewModel(
     private val repository: BudgetRepository,
-    private val transactionId: Long
+    private val transactionId: Long,
+    defaultRepeatMonthly: Boolean = false
 ) : ViewModel() {
 
-    private val form = MutableStateFlow(EditFormState())
+    private val form = MutableStateFlow(
+        EditFormState(repeatMonthly = transactionId == 0L && defaultRepeatMonthly)
+    )
 
     val uiState: StateFlow<EditUiState> = combine(
         form,
@@ -111,7 +116,17 @@ class EditTransactionViewModel(
     }
 
     fun onRepeatChange(repeat: Boolean) {
-        form.update { it.copy(repeatMonthly = repeat, endDate = if (repeat) it.endDate else null) }
+        form.update {
+            it.copy(
+                repeatMonthly = repeat,
+                endDate = if (repeat) it.endDate else null,
+                notifyEnabled = if (repeat) it.notifyEnabled else false
+            )
+        }
+    }
+
+    fun onNotifyChange(notifyEnabled: Boolean) {
+        form.update { it.copy(notifyEnabled = notifyEnabled) }
     }
 
     fun onEndDateChange(date: LocalDate?) {
@@ -149,7 +164,8 @@ class EditTransactionViewModel(
                         startEpochDay = state.date.toEpochDay(),
                         nextEpochDay = next.toEpochDay(),
                         active = true,
-                        endEpochDay = state.endDate?.toEpochDay()
+                        endEpochDay = state.endDate?.toEpochDay(),
+                        notifyEnabled = state.notifyEnabled
                     )
                 )
             }
